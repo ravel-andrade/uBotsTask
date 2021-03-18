@@ -1,13 +1,5 @@
 package bot;
 
-import com.example.demo.UBotsTask1Application;
-import com.fasterxml.jackson.databind.annotation.JsonAppend;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -16,22 +8,22 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import services.ResponseService;
 
-import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
-@SpringBootApplication
-@Component
-public class Bot extends TelegramLongPollingBot{
-	private ResponseService service = new ResponseService();
 
-	private final Properties properties;
 
-	@Autowired
-	public Bot(Properties properties) {
-		this.properties = properties;
+public class Bot extends TelegramLongPollingBot {
+	private ResponseService service;
+	private String botName;
+	private String token;
+
+
+	public Bot(ResponseService service, String botName, String token) {
+		this.service = service;
+		this.botName = botName;
+		this.token = token;
 	}
-
-
-
 
 	@Override
 	public void onUpdateReceived(Update update) {
@@ -39,9 +31,19 @@ public class Bot extends TelegramLongPollingBot{
 		if (update.hasMessage()) {
 			Message message = update.getMessage();
 			if (message.hasText()) {
-				String responseText = service.getResponse(message.getText());
+				String responseText = null;
+
+				try {
+					responseText = service.getResponse(message.getText());
+				} catch (GeneralSecurityException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
 				SendMessage response = new SendMessage();
-				response.setChatId(message.getChatId()).setText("(?i)"+responseText);
+				response.setChatId(message.getChatId().toString());
+				response.setText(responseText);
 				sendResponse(response);
 			}
 		}
@@ -57,12 +59,12 @@ public class Bot extends TelegramLongPollingBot{
 
 	@Override
 	public String getBotUsername() {
-		return properties.getBotName();
+		return this.botName;
 	}
 
 	@Override
 	public String getBotToken() {
-		return properties.getToken();
+		return this.token;
 	}
 
 }

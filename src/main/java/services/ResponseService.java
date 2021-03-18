@@ -1,32 +1,45 @@
 package services;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.*;
 
-import com.google.common.collect.Lists;
 
 public class ResponseService {
 
 	private static final Map<String, List<String>> responses = new HashMap<String, List<String>>();
 
-	public ResponseService() {
+	public ResponseService() throws IOException, GeneralSecurityException {
 		initializeResponses();
 	}
 
-	public String getResponse(String userMessage) {
-		userMessage = userMessage.toLowerCase();
+	public String getResponse(String userMessage) throws GeneralSecurityException, IOException {
+		String messageText = userMessage.toLowerCase();
+
 		for (Map.Entry<String, List<String>> entry : responses.entrySet()) {
-			if (entry.getValue().contains(userMessage)) {
+
+			if (entry.getValue().contains(messageText)) {
 				return entry.getKey();
 			}
 		}
 		return "Não sei responder essa pergunta :P";
 	}
-	
-	public void initializeResponses() {
-		responses.put("ravel",  Lists.newArrayList("qual seu nome?", "como se chama?"));
-		responses.put("21",  Lists.newArrayList("qual sua idade?", "quantos anos você tem?"));
+
+	private String getEvents() throws IOException, GeneralSecurityException {
+		List<String> events = CalendarConnector.getWeekEvents();
+		String response = "Eventos da semana: \n\n";
+		for(String event : events){
+			response= response + event + "\n";
+		}
+		return response;
+	}
+
+	public void initializeResponses() throws IOException, GeneralSecurityException {
+		responses.put("ravel", Arrays.asList("qual seu nome?", "como se chama?"));
+		responses.put("21",  Arrays.asList("qual sua idade?", "quantos anos você tem?"));
+		responses.put("Não tenho apelido ;(",  Arrays.asList("qual seu apelido", "tem algum apelido?"));
+		responses.put(getEvents(),  Arrays.asList("agenda"));
+
 	}
 
 }

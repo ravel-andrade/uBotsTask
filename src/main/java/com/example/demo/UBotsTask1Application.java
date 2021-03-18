@@ -1,40 +1,49 @@
 package com.example.demo;
 
-import bot.Properties;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.stereotype.Controller;
-import org.telegram.telegrambots.ApiContextInitializer;
+import org.springframework.context.annotation.Bean;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import bot.Bot;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.generics.BotSession;
+import org.telegram.telegrambots.meta.generics.LongPollingBot;
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
+import services.ResponseService;
 
-import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 
 @SpringBootApplication
-@Controller
 public class UBotsTask1Application {
 
-	public static void main(String[] args) {
-		SpringApplication.run(UBotsTask1Application.class, args);
-		initializeBot();
 
-	}
 
-	private static void initializeBot() {
-		ApiContextInitializer.init();
-		TelegramBotsApi telegramBotsApi = new TelegramBotsApi();;
-		registerBot(telegramBotsApi);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(UBotsTask1Application.class, args);
 
-	private static void registerBot(TelegramBotsApi telegramBotsApi) {
-		try {
-			telegramBotsApi.registerBot(new Bot(new Properties()));
-		} catch (TelegramApiException e) {
+    }
 
-		}
-	}
+    @Bean
+    public Bot bot(ResponseService responseService,
+                   @Value("${telegram.botname}") String botName,
+                   @Value("${telegram.token}") String token) {
+        return new Bot(responseService, botName, token);
+    }
+
+    @Bean
+    public ResponseService responseService() throws IOException, GeneralSecurityException {
+        return new ResponseService();
+    }
+
+    @Bean
+    public BotSession botSession(LongPollingBot bot) throws TelegramApiException {
+        TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
+            return telegramBotsApi.registerBot(bot);
+
+    }
 
 }
