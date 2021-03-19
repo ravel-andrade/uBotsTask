@@ -1,5 +1,7 @@
 package services;
 
+import jdk.nashorn.internal.runtime.regexp.joni.Regex;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.*;
@@ -7,23 +9,31 @@ import java.util.*;
 
 public class ResponseService {
 
-	private static final Map<String, List<String>> responses = new HashMap<String, List<String>>();
+	private static final Map<String, String> responses = new HashMap<String, String>();
 
 	public ResponseService() throws IOException, GeneralSecurityException {
 		initializeResponses();
 	}
 
-	public String getResponse(String userMessage) throws GeneralSecurityException, IOException {
-		String messageText = userMessage.toLowerCase();
-
-		for (Map.Entry<String, List<String>> entry : responses.entrySet()) {
-
-			if (entry.getValue().contains(messageText)) {
+	public String getResponse(String userMessage) {
+		for (Map.Entry<String, String> entry : responses.entrySet()) {
+			if (userMessage.toLowerCase(Locale.ROOT).matches(entry.getValue())) {
+				if(entry.getKey().equals("Agenda")){
+					try {
+						return getEvents();
+					} catch (IOException e) {
+						return "Alguma coisa deu errado, tente novamente \n\n"+e.getMessage();
+					} catch (GeneralSecurityException e) {
+						return "Alguma coisa deu errado, tente novamente \n\n"+e.getMessage();
+					}
+				}
 				return entry.getKey();
 			}
 		}
 		return "Não sei responder essa pergunta :P";
 	}
+
+
 
 	private String getEvents() throws IOException, GeneralSecurityException {
 		List<String> events = CalendarConnector.getWeekEvents();
@@ -35,10 +45,10 @@ public class ResponseService {
 	}
 
 	public void initializeResponses() throws IOException, GeneralSecurityException {
-		responses.put("ravel", Arrays.asList("qual seu nome?", "como se chama?"));
-		responses.put("21",  Arrays.asList("qual sua idade?", "quantos anos você tem?"));
-		responses.put("Não tenho apelido ;(",  Arrays.asList("qual seu apelido", "tem algum apelido?"));
-		responses.put(getEvents(),  Arrays.asList("agenda"));
+		responses.put("ravel", new String("(qual)+(.?)+(seu|teu)+(.?)+(nome)+(.?)+(\\?)"));
+		responses.put("21", new String("(qual|quantos)+(.?)+(sua|teu|anos)+(.?)+(idade|você tem)+(.?)+(\\?)"));
+		responses.put("DIO", new String("(qual|tem)+(.?)+(seu|teu|algum)+(.?)+(apelido)+(.?)+(\\?)"));
+		responses.put("Agenda", new String("(como)+(.?)+(está|esta)+(.?)+(a minha|minha)+(.?)+(agenda)+(\\?)"));
 
 	}
 

@@ -27,6 +27,7 @@ public class UBotsTask1Application {
 
     }
 
+
     @Bean
     public Bot bot(ResponseService responseService,
                    @Value("${telegram.botname}") String botName,

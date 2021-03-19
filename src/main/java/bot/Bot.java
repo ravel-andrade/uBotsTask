@@ -14,9 +14,9 @@ import java.security.GeneralSecurityException;
 
 
 public class Bot extends TelegramLongPollingBot {
-	private ResponseService service;
-	private String botName;
-	private String token;
+	private final ResponseService service;
+	private final String botName;
+	private final String token;
 
 
 	public Bot(ResponseService service, String botName, String token) {
@@ -32,15 +32,7 @@ public class Bot extends TelegramLongPollingBot {
 			Message message = update.getMessage();
 			if (message.hasText()) {
 				String responseText = null;
-
-				try {
-					responseText = service.getResponse(message.getText());
-				} catch (GeneralSecurityException e) {
-					e.printStackTrace();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-
+				responseText = service.getResponse(message.getText());
 				SendMessage response = new SendMessage();
 				response.setChatId(message.getChatId().toString());
 				response.setText(responseText);

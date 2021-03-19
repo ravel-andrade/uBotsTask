@@ -15,11 +15,15 @@ import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.Events;
+import org.joda.time.Hours;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
+import java.time.*;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 public class CalendarConnector {
@@ -47,18 +51,23 @@ public class CalendarConnector {
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
 
-    public static List<String> getWeekEvents() throws IOException, GeneralSecurityException{
+    public static List<String> getWeekEvents() throws IOException, GeneralSecurityException {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         Calendar service = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                 .setApplicationName(APPLICATION_NAME)
                 .build();
 
-        DateTime sunday = new DateTime(getLastSunday());
-        DateTime saturday = new DateTime(sunday.getValue()+604800000);
+        ;
+        DateTime monday = new DateTime(getMonday().getValue());
+        System.out.println(monday.toString());
+
+        DateTime sunday = new DateTime(getSunday().getValue());
+        System.out.println(sunday.toString());
+
         Events events = service.events().list("primary")
-                .setTimeMin(sunday)
-                .setTimeMax(saturday)
+                .setTimeMin(monday)
+                .setTimeMax(sunday)
                 .setOrderBy("startTime")
                 .setSingleEvents(true)
                 .execute();
@@ -72,26 +81,41 @@ public class CalendarConnector {
                 if (start == null) {
                     start = event.getStart().getDate();
                 }
-                eventData.add(event.getSummary() +" " +start.toString().substring(0, 10));
+                eventData.add(event.getSummary() + start);
+
             }
         }
         return eventData;
     }
 
-    public static Date getLastSunday(){
-        Long diferenceMils =0L;
-        Date date = new Date (System.currentTimeMillis());
-        if(date.getDay()>0){
-            Long days = (Long.parseLong(String.valueOf(date.getDay())));
-            diferenceMils +=  days*86400000;
-        }
+    public static DateTime getMonday() {
+        LocalDateTime now = LocalDateTime.now();
+        ZoneId zone = ZoneId.of("America/Sao_Paulo");
+        ZoneOffset zoneOffSet = zone.getRules().getOffset(now);
 
-        if(date.getHours()>0){
-            Long hours = (Long.parseLong(String.valueOf(date.getHours())));
-            diferenceMils +=  hours*3600000;
+        if (now.getDayOfWeek().getValue() > DayOfWeek.MONDAY.getValue()) {
+            now = now.minusDays(now.getDayOfWeek().getValue());
         }
-
-        date = new Date (System.currentTimeMillis()-diferenceMils);
-        return date;
+        now = now.minusHours(now.getHour());
+        now = now.minusMinutes(now.getMinute());
+        now = now.minusSeconds(now.getSecond());
+        return new DateTime(now.toInstant(zoneOffSet).toEpochMilli());
     }
+
+    public static DateTime getSunday() {
+        LocalDateTime now = LocalDateTime.now();
+        ZoneId zone = ZoneId.of("America/Sao_Paulo");
+        ZoneOffset zoneOffSet = zone.getRules().getOffset(now);
+
+        if (now.getDayOfWeek().getValue() < DayOfWeek.SUNDAY.getValue()) {
+            now = now.plusDays(DayOfWeek.SUNDAY.getValue() - (now.getDayOfWeek().getValue()));
+        }
+        now = now.minusHours(now.getHour());
+        now = now.minusMinutes(now.getMinute());
+        now = now.minusSeconds(now.getSecond());
+
+        return new DateTime(now.toInstant(zoneOffSet).toEpochMilli());
+    }
+
+
 }
