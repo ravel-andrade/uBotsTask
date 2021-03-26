@@ -15,15 +15,13 @@ import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.Events;
-import org.joda.time.Hours;
-
+import services.datastructure.EventData;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.time.*;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 public class CalendarConnector {
@@ -32,16 +30,32 @@ public class CalendarConnector {
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR_READONLY);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    private static Calendar calendarService = getService(); // Fazer uma injecao de dependencia coerente @TODO
 
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-        // Load client secrets.
+    private static Calendar getService() {
+        Calendar service = null;
+        try {
+            final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+            service = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        return service;
+    }
+
+    public static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
+
         InputStream in = CalendarConnector.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
             throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
         }
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
-
-        // Build flow and trigger user authorization request.
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
@@ -51,44 +65,34 @@ public class CalendarConnector {
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
 
-    public static List<String> getWeekEvents() throws IOException, GeneralSecurityException {
-        // Build a new authorized API client service.
-        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        Calendar service = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-
-        ;
+    public static List<EventData> getWeekEvents()  {
         DateTime monday = new DateTime(getMonday().getValue());
-        System.out.println(monday.toString());
-
         DateTime sunday = new DateTime(getSunday().getValue());
-        System.out.println(sunday.toString());
-
-        Events events = service.events().list("primary")
-                .setTimeMin(monday)
-                .setTimeMax(sunday)
-                .setOrderBy("startTime")
-                .setSingleEvents(true)
-                .execute();
-        List<Event> items = events.getItems();
-        List<String> eventData = new ArrayList<>();
-        if (items.isEmpty()) {
-            System.out.println("No upcoming events found.");
-        } else {
-            for (Event event : items) {
-                DateTime start = event.getStart().getDateTime();
-                if (start == null) {
-                    start = event.getStart().getDate();
-                }
-                eventData.add(event.getSummary() + start);
-
-            }
+        List<Event> items = getEventsByPeriod(monday, sunday).getItems();
+        List<EventData> eventData = new ArrayList<>();
+        for (Event event : items) {
+            eventData.add(new EventData(event.getSummary(),event.getStart().getDateTime().getValue()));
+            System.out.println(event.getSummary() +"  "+ event.getStart().getDateTime().getValue());
         }
         return eventData;
     }
 
-    public static DateTime getMonday() {
+    private static Events getEventsByPeriod(DateTime beginning, DateTime finish){
+        Events events = null;
+        try {
+            events = calendarService.events().list("primary")
+                    .setTimeMin(beginning)
+                    .setTimeMax(finish)
+                    .setOrderBy("startTime")
+                    .setSingleEvents(true)
+                    .execute();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return events;
+    }
+
+    private static DateTime getMonday() {
         LocalDateTime now = LocalDateTime.now();
         ZoneId zone = ZoneId.of("America/Sao_Paulo");
         ZoneOffset zoneOffSet = zone.getRules().getOffset(now);
@@ -102,7 +106,7 @@ public class CalendarConnector {
         return new DateTime(now.toInstant(zoneOffSet).toEpochMilli());
     }
 
-    public static DateTime getSunday() {
+    private static DateTime getSunday() {
         LocalDateTime now = LocalDateTime.now();
         ZoneId zone = ZoneId.of("America/Sao_Paulo");
         ZoneOffset zoneOffSet = zone.getRules().getOffset(now);
@@ -116,6 +120,5 @@ public class CalendarConnector {
 
         return new DateTime(now.toInstant(zoneOffSet).toEpochMilli());
     }
-
 
 }
